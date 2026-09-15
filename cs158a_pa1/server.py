@@ -59,7 +59,15 @@ def get_status_line(code):
         str: Full status line including HTTP version, code, and reason phrase
     """
     # TODO: implement this function
-    pass
+    status_lines = {
+        200: 'HTTP/1.1 200 OK',
+        400: 'HTTP/1.1 400 Bad Request',
+        404: 'HTTP/1.1 404 Not Found',
+        405: 'HTTP/1.1 405 Method Not Allowed',
+        500: 'HTTP/1.1 500 Internal Server Error'
+    }
+    return status_lines.get(code)
+    
 
 
 def parse_http_request(raw_data):
@@ -73,8 +81,33 @@ def parse_http_request(raw_data):
         Return None if the data cannot be parsed.
     """
     # TODO: implement this function
-    pass
 
+    try:
+        raw = raw_data.decode('utf-8', errors='replace')
+        raw_lines = raw.split('\r\n')
+
+        request_line_info = raw_lines[0].split()
+        if len(request_line_info) != 3:
+            return None
+
+        headers = {}
+        for line in raw_lines[1:]:
+            if not line:
+                break
+            if (":") not in line:
+                return None
+            key,value = line.split(":", 1)
+            headers[key] = value
+
+        return {
+            "method":   request_line_info[0],
+            "path":     request_line_info[1],
+            "version":  request_line_info[2],
+            "headers":  headers,
+        }
+    except(AttributeError, UnicodeError):
+        None
+        
 
 def serve_file(path):
     """
@@ -89,7 +122,14 @@ def serve_file(path):
                content_bytes - bytes or None
                mime_type     - str or None
     """
+    print("Requested path:", repr(path))
+    print("Current directory:", os.getcwd())
+    
+    path = path.lstrip('/\\')
     full_path = os.path.join(WEBROOT, path)
+
+    print("Full path:", os.path.abspath(full_path))
+    print("Exists:", os.path.exists(full_path))
 
     if os.path.exists(full_path) and os.path.isfile(full_path):
         with open(full_path, 'rb') as f:
@@ -116,7 +156,7 @@ def build_http_response(status_code, body_bytes, extra_headers=None):
     status_line = get_status_line(status_code)
 
     headers = {
-        'Content-Length': str(len('200 OK')),
+        'Content-Length': str(len(body_bytes)),
         'Date': time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime()),
         'Server': 'PA1Server/1.0',
     }
