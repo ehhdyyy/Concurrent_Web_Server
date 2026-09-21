@@ -119,7 +119,31 @@ def slow_client(host, port, path):
         path (str): URL path to request, e.g. '/large.bin'
     """
     # TODO: implement this function
-    pass
+    # connect to the server
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((host, port))
+        request = build_get_request(host, port, path)
+        sock.sendall(request)
+
+        current_time = time.time()
+        start_time = current_time
+        last_print_time = current_time
+        
+        total_bytes_received = 0
+
+        while True:
+            chunk = sock.recv(SLOW_READ_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_bytes_received += len(chunk)
+            current_time = time.time()
+            if current_time - last_print_time >= PRINT_INTERVAL:
+                print(f"[{_ts()}] Received {total_bytes_received} bytes so far...")
+                last_print_time = current_time
+            time.sleep(SLOW_READ_DELAY)
+
+        print(f"[{_ts()}] Finished receiving {total_bytes_received} bytes. Took {current_time - start_time:.2f} seconds.")
+        sock.close()
 
 
 def fast_client(host, port, path):
@@ -130,7 +154,18 @@ def fast_client(host, port, path):
         path (str): URL path to request, e.g. '/about.html'
     """
     # TODO: implement this function
-    pass
+    # connect to the server
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.connect((host, port))
+        request = build_get_request(host, port, path)
+        sock.sendall(request)
+
+        start_time = time.time()
+        response = read_http_response(sock)
+        end_time = time.time()
+
+        print(f"[{_ts()}] Received {len(response)} bytes in {end_time - start_time:.2f} seconds.")
+        sock.close()
 
 
 # ===========================================================================

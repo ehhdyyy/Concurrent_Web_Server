@@ -224,46 +224,48 @@ def handle_connection_persistent(conn):
     """
     # TODO: implement this function
     conn.settimeout(TIMEOUT)
-    while True:
-        try:
-            raw_data = conn.recv(4096)
-            if not raw_data:
-                break
+    try:
+        while True:
+            try:
+                raw_data = conn.recv(4096)
+                if not raw_data:
+                    break
 
-            request = parse_http_request(raw_data)
-            if request is None:
-                response = build_http_response(400, b'Bad Request')
+                request = parse_http_request(raw_data)
+                if request is None:
+                    response = build_http_response(400, b'Bad Request')
+                    conn.sendall(response)
+                    break
+
+                if request['method'] != 'GET':
+                    response = build_http_response(405, b'Method Not Allowed')
+                    conn.sendall(response)
+                    break
+
+                status_code, content, mime_type = serve_file(request['path'])
+                if status_code == 200:
+                    extra_headers = {'Content-Type': mime_type}
+                    response = build_http_response(200, content, extra_headers)
+                else:
+                    response = build_http_response(404, b'Not Found')
+
                 conn.sendall(response)
-                break
+                # Check for "Connection: close" header
+                if 'Connection' in request['headers'] and request['headers']['Connection'].lower() == 'close':
+                    break
 
-            if request['method'] != 'GET':
-                response = build_http_response(405, b'Method Not Allowed')
+            except socket.timeout:
+                print("[Server] Connection timed out.")
+                break
+            except Exception as e:
+                print("[Server] Error handling connection: {e}")
+                response = build_http_response(500, b'Internal Server Error')
                 conn.sendall(response)
-                break
-
-            status_code, content, mime_type = serve_file(request['path'])
-            if status_code == 200:
-                extra_headers = {'Content-Type': mime_type}
-                response = build_http_response(200, content, extra_headers)
-            else:
-                response = build_http_response(404, b'Not Found')
-
-            conn.sendall(response)
-
-            # Check for "Connection: close" header
-            if 'Connection' in request['headers'] and request['headers']['Connection'].lower() == 'close':
-                break
-
-        except socket.timeout:
-            print("[Server] Connection timed out.")
-            break
-        except Exception as e:
-            print("[Server] Error handling connection: {e}")
-            response = build_http_response(500, b'Internal Server Error')
-            conn.sendall(response)
-            break   
-        finally:
-            conn.close()
+                break   
+    except KeyboardInterrupt:
+        print("\n[Server] Shutting down.")
+    finally:
+        conn.close()
 
 
 # ===========================================================================
